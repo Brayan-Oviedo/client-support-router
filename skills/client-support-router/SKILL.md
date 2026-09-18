@@ -1,19 +1,17 @@
 ---
 name: client-support-router
-description: "Routes incoming client messages by intent, generates on-brand responses, flags escalations. No operator required for BOOKING/QUOTE/INFO/OBJECTION/ACK. Always escalates COMPLAINT and UNKNOWN."
+description: "Handles every routine client message automatically — BOOKING, QUOTE, INFO, OBJECTION, ACK — so the operator only shows up for what truly needs them."
 ---
 
-# Client Support Router
-
 ## WHEN TO LOAD
-Load when processing any incoming client message that requires a response (WhatsApp, DM, email, contact form).
+Before you answer any client message manually. Every sentence you type for a routine inquiry is a process you still own.
 
 ## CONFIG
 
 ```yaml
 business_name: ""
-service_type: ""          # beauty_salon | freelancer | agency | coach | other
-response_voice: ""        # formal | conversational | warm
+service_type: ""       # beauty_salon | freelancer | agency | coach | other
+response_voice: ""     # formal | conversational | warm
 pricing:
   - service: ""
     price: ""
@@ -21,36 +19,42 @@ available_hours: ""
 escalation_contact: ""
 ```
 
-## INTENT CLASSIFICATION
+## INTENT — WHAT THIS REPLACES
 
-| Signal words | Intent | Escalate |
+| Intent | Manual process it takes over | Escalate |
 |---|---|---|
-| agendar · cita · reservar · disponibilidad · cuándo puedes | BOOKING | NO |
-| precio · cuánto · costo · tarifa · presupuesto · cobras | QUOTE | NO |
-| cómo funciona · qué incluye · explica · información · qué es | INFO | NO |
-| problema · queja · mal · no funcionó · decepcionado · reclamo | COMPLAINT | YES |
-| no sé si · duda · miedo · pero · aunque · no estoy seguro | OBJECTION | NO |
-| gracias · ok · recibido · confirmado · perfecto · entendido | ACK | NO |
-| anything else | UNKNOWN | YES |
+| BOOKING | Checking availability and typing a reply | NO |
+| QUOTE | Looking up prices and writing the same paragraph | NO |
+| INFO | Explaining the same thing for the 10th time this week | NO |
+| OBJECTION | Handling doubt without a script, hoping it lands | NO |
+| ACK | Reading and typing "perfecto, con gusto" | NO |
+| COMPLAINT | Needs you — escalate with full context | YES |
+| UNKNOWN | Needs you — escalate with full context | YES |
 
 ## RESPONSE RULES
 
-Use configured `response_voice` throughout:
-- `formal` — usted, complete sentences, no contractions
-- `conversational` — tú, relaxed, can use ellipsis
-- `warm` — tú, emojis allowed, feels human
+- `formal` — usted, complete sentences
+- `conversational` — tú, relaxed
+- `warm` — tú, emojis allowed
 
-Never invent pricing — use `pricing` config only.
-Never promise timelines not in config.
-Response length: 2–4 sentences max.
-End BOOKING and QUOTE responses with a single open question.
+Never invent pricing. Never promise timelines not in config.
+2–4 sentences max. BOOKING/QUOTE end with one open question.
 
 ## ESCALATION FORMAT
 
-When `Escalate: YES`:
-- Still classify the intent
-- Do not generate a client-facing response
-- Generate an internal operator note explaining why escalation is needed
+When `Escalate: YES`: classify intent, skip client response, output operator note with full context.
+
+## PAIR WITH N8N
+
+To remove the operator entirely from routine messages:
+
+```
+WhatsApp / IG DM → n8n webhook → HTTP node → Claude + this skill
+→ Escalate=NO → reply via WhatsApp/DM node
+→ Escalate=YES → notify operator via Telegram or Slack
+```
+
+Pair with `czlonkowski/n8n-mcp` to control n8n flows from Claude directly.
 
 ## OUTPUT FORMAT
 
@@ -60,17 +64,16 @@ Confidence: {HIGH|LOW}
 Escalate:   {YES|NO}
 
 Response:
-{ready-to-send client response, or ESCALATED if Escalate=YES}
+{ready-to-send reply, or ESCALATED}
 
 Note (operator):
-{internal note — only when Escalate=YES}
+{context for fast resolution — only when Escalate=YES}
 ```
 
 ## QUALITY GATE
 
-- [ ] Intent classified with rationale
-- [ ] Response voice matches config
-- [ ] No invented pricing or timelines in response
-- [ ] COMPLAINT and UNKNOWN always have Escalate=YES
-- [ ] Response is 2–4 sentences
-- [ ] BOOKING/QUOTE ends with one open question
+- [ ] Intent classified
+- [ ] Voice matches config
+- [ ] No invented pricing or timelines
+- [ ] COMPLAINT + UNKNOWN always Escalate=YES
+- [ ] 2–4 sentences, BOOKING/QUOTE ends with question
